@@ -19,9 +19,9 @@ include $(FSTROOT)/common_flags.mk
 
 CUFILES		:= common_cuda.cu
 
-CCFILES		:= auxModels.cpp common.cpp
+CCFILES		:= common.cpp
 
-HFILES 		:= auxModels.h common.h
+HFILES 		:= common.h
 
 ################################################################################
 # Set up object files

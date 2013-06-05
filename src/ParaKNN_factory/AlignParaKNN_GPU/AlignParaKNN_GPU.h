@@ -11,7 +11,6 @@ Date: 10/22/2012
 #include "../../runopt.h"
 #include "../IParaKNN.h"
 
-#include "../../shared/auxModels.h"
 #include "../../shared/common.h"
 
 class AlignParaKNN_GPU : public IParaKNN {
