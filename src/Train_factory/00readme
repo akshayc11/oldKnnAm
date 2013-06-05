@@ -1,0 +1,8 @@
+# Author: Akshay Chandrashekaran
+# This factory is used to implement the loading of the training data 
+# from a file to the machine. Based on the requirement, The data can
+# be loaded to the CPU RAM or the GPU Global memory. If the memory 
+# requirement is too large for the GPU, the code will fail at this 
+# point. Currently, no preprpcessing is done on the data, and the raw 
+# data is loaded. It works on the MNIST format image data for now.
+

@@ -1,0 +1,2 @@
+thrustKNN_GPU: Will just output the distance matrix
+simKNN_GPU: Will go ahead for measure propagation
