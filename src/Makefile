@@ -30,6 +30,7 @@ RECURSIVE_OBJS	:= common.cpp.o common_cuda.cu.o\
 	AlignTrain_newpFile_GPU.cu.o \
 	Test_factory.cpp.o \
 	AlignTest_GPU.cu.o \
+	AlignTest_newpFile_GPU.cu.o \
 	ParaKNN_factory.cpp.o \
 	AlignParaKNN_GPU.cpp.o \
 	KNN_factory.cpp.o \
@@ -44,6 +45,7 @@ DIRS		:= shared \
 	Train_factory/AlignTrain_newpFile_GPU \
 	Test_factory \
 	Test_factory/AlignTest_GPU \
+	Test_factory/AlignTest_newpFile_GPU \
 	ParaKNN_factory \
 	ParaKNN_factory/AlignParaKNN_GPU \
 	KNN_factory \

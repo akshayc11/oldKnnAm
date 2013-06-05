@@ -178,56 +178,6 @@ void thrustKNN_GPU::AllocateDataStructs() {
     exit(-1);
   }
   
-  // try {
-  //   testLabel.resize(M);
-  // }
-  // catch (std::bad_alloc &e) {
-  //   std::cerr << "Couldn't allocate trainLabel\n";
-  //   exit(-1);
-  // }
-  
-  
-  try {
-    testDistrib.resize(maxLabel);
-  }
-  catch (std::bad_alloc &e) {
-    std::cerr << "Couldn't Allocate testDistrib\n";
-    exit(-1);
-  }
-  
-  try {
-    tempTestLabels.resize(K);
-  } catch (std::bad_alloc &e) {
-    std::cerr << "Couldn't Allocate tempTestLabels\n";
-    exit(-1);
-  }
-  try {
-    tempTrainDistances.resize(K);
-
-    testIndex.resize(K);
-    tempVal.resize(K);
-    
-    outLabel.resize(K);
-    outVal.resize(K);
-    outDistances.resize(K);
-    den.resize(K);
-  } catch (std::bad_alloc &e) {
-    std::cerr << "Error Allocating structures related to K\n"; 
-  }
-  try { 
-    thrust::fill(den.begin(), den.end(),K);
-  } catch (thrust::system_error &e) {
-    std::cerr << "Error in filling den " << e.what() << std::endl;
-    exit(-1);
-  }
-  
-  
-  
-  // Fill trainIndex with 1:N
-  thrust::sequence(trainIndex.begin(), trainIndex.end(),0);
-  
-  
-  
 }
 
 void thrustKNN_GPU::Setup_KNN() {
@@ -241,6 +191,7 @@ void thrustKNN_GPU::getKNN() {
   // Functions to be implemented include: distance Metric. 
 
   // remember to free the mallocs here
+  std::cout << "K: " << K << " M: " << M << " D: " << D << " maxLabel: " << maxLabel << std::endl;
   float score_max = SCORE_MAX;
   {  
     unsigned char *cptr = reinterpret_cast<unsigned char *>(&score_max);
@@ -252,25 +203,26 @@ void thrustKNN_GPU::getKNN() {
     cptr[2] = tmp;      
   }
   printf("thrustKNN_GPU::findKNN_Batch\n");
-  std::cout << "K: " << K << " M: " << M << std::endl;
   boost::progress_display show_progress(M);
+
   thrust::host_vector <float> h_outVal(K);
+  
   
   thrust::device_vector <float> outDistances(K);
   thrust::device_vector <float> outDistances2(K);
+
   
   thrust::device_vector <unsigned int> outIndexes(K);
   thrust::device_vector <unsigned int> outIndexes2(K);
+
   
   thrust::device_vector<float> count(K);
   thrust::device_vector<float> count2(K);
   
-  thrust::host_vector <float> h_tempTrainDistances(K);
-  //thrust::host_vector <float> d_trainDistances(K*M);
-  //thrust::host_vector <unsigned int> d_trainIndex(K*M);
   
   float* objTest;
   cudaMalloc((void **)&objTest, D*sizeof(float));
+  
   
   unsigned int maxTick = 1000;
   float* trainDistance_ptr = thrust::raw_pointer_cast(&trainDistances[0]);
@@ -289,6 +241,8 @@ void thrustKNN_GPU::getKNN() {
   thrust::device_vector <float> likelihood2 (maxLabel*maxTick);
   
   thrust::device_vector <float> likelihood_p(maxLabel);
+  
+  
   FILE* fp = fopen(opFileName.c_str(), "wb");
   
   std::string like1Op = opFileName + ".lik1";
@@ -334,9 +288,9 @@ void thrustKNN_GPU::getKNN() {
 
     // Log Likelihood computation
     {
-      thrust::copy_n(trainIndex.begin()+1, K, outIndexes.begin());
-      thrust::copy_n(trainIndex.begin()+1, K, outIndexes2.begin());
-      thrust::copy_n(trainDistances.begin()+1, K, outDistances.begin());
+      thrust::copy_n(trainIndex.begin(), K, outIndexes.begin());
+      thrust::copy_n(trainIndex.begin(), K, outIndexes2.begin());
+      thrust::copy_n(trainDistances.begin(), K, outDistances.begin());
       
       // Method 1 of lik computation: Using only indexes:
       thrust::sort(outIndexes.begin(), outIndexes.end());
@@ -433,12 +387,12 @@ void thrustKNN_GPU::getKNN() {
       
     }
     //thrust::copy_n(trainIndex.begin()+1, K, d_trainIndex.begin()+(K*i) );
-    thrust::copy_n(trainIndex.begin()+1, K, indexP + (K*ticker));
+    thrust::copy_n(trainIndex.begin(), K, indexP + (K*ticker));
     
     cudaDeviceSynchronize();
     
     //thrust::copy_n(trainDistances.begin()+1, K, d_trainDistances.begin()+(K*i) );
-    thrust::copy_n(trainDistances.begin()+1, K, distanceP + (K*ticker));
+    thrust::copy_n(trainDistances.begin(), K, distanceP + (K*ticker));
     
     cudaDeviceSynchronize();
     
@@ -516,6 +470,8 @@ void thrustKNN_GPU::getKNN() {
   cudaFree(objTest);
   free(distanceP);
   free(indexP);
+  free(label1P);
+  free(label2P);
   fclose(fp);    
   fclose(fp1);
   fclose(fp2);
