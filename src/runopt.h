@@ -43,7 +43,7 @@ class Runopt {
   int    Align;	/* Indicates if the file is of align type (precursor to pfile) */
   int    Validation; 		/*  Indicates if data is to be split into test and train */
   int    Split;			/*  Indicate amount of training data split for validation */
-  
+  int    new_pFile;		/* Indicates if new pfile format is used */
   int numCoords; 		/* Number of dimensions in a feature */
   
   // Related to the input and output

@@ -43,7 +43,11 @@ void AlignParaKNN_GPU::CustomizeFunc() {
 #ifdef FINE_DEBUG
   printf("AlignParaKNN_GPU: customizeFunc\n");
 #endif
-  Train = Train_factory::Get_Train(ALIGNTRAIN_GPU,options);
+  if(options->new_pFile == 0)
+    Train = Train_factory::Get_Train(ALIGNTRAIN_GPU,options);
+  else
+    Train = Train_factory::Get_Train(ALIGNTRAIN_NEWPFILE_GPU,options);
+  
   Test = Test_factory::Get_Test(ALIGNTEST_GPU,options, Train);
   KNN   = KNN_factory::Get_KNN(THRUST_KNN_GPU, options, Train, Test); 
 }

@@ -61,17 +61,19 @@ AlignTrain_newpFile_GPU::~AlignTrain_newpFile_GPU() {
 void AlignTrain_newpFile_GPU::Setup_Train() {
   //sleep(10);
   K = options->K;
-  numCoords = options->numCoords;
+  //numCoords = options->numCoords;
   inFile.open((options->align_train).c_str(), std::ios::in | std::ios::binary);
+  std::cout << "AlignTrain_newpFile_GPU::Setup_Train" << std::endl;
   if (inFile.is_open()) {
     char buf[1024];
     do {
       inFile.getline(buf,1024);
       std::string buffer(buf);
-      if (buffer.find_first_of("-end") == std::string::npos)
+      std::cout << buffer << std::endl;
+      if (buffer.find("-end") != std::string::npos)
 	break;
       {
-	size_t pos = buffer.find_first_of("-num_frames "); 
+	size_t pos = buffer.find("-num_frames "); 
 	if (pos != std::string::npos) {
 	  pos += 12;
 	  std::string num_Objs = buffer.substr(pos);
@@ -79,7 +81,7 @@ void AlignTrain_newpFile_GPU::Setup_Train() {
 	}
       }
       {
-	size_t pos = buffer.find_first_of("-num_features ");
+	size_t pos = buffer.find("-num_features ");
 	if (pos != std::string::npos) {
 	  pos += 14;
 	  std::string num_Coords = buffer.substr(pos);
@@ -92,6 +94,7 @@ void AlignTrain_newpFile_GPU::Setup_Train() {
     headerSize = inFile.tellg();
     
   }
+
   std::cout << "numObjs: " << numObjs << " numCoords: " << numCoords << std::endl;
   inFile.close();
   offset = (numCoords + 1 + 2)*4;

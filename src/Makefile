@@ -41,6 +41,7 @@ RECURSIVE_OBJS	:= common.cpp.o common_cuda.cu.o\
 DIRS		:= shared \
 	Train_factory \
 	Train_factory/AlignTrain_GPU \
+	Train_factory/AlignTrain_newpFile_GPU \
 	Test_factory \
 	Test_factory/AlignTest_GPU \
 	ParaKNN_factory \

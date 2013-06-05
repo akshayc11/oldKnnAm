@@ -44,6 +44,7 @@ Runopt::Runopt() {
   MULTI_GPU_IMPL   = 1;
   Align            = 1;
   Validation       = 0;
+  new_pFile        = 0;
 }
 
 Runopt::~Runopt() {
@@ -80,6 +81,7 @@ void Runopt::printFinalRunOptions() {
     printf("\tGPU_only = %d\n",GPU_only);
     printf("\tFORCE_GPU_ID = %d\n",FORCE_GPU_ID);
     printf("\tMULTI_GPU_IMPL = %d\n",MULTI_GPU_IMPL);
+    printf("\tnew PFile format = %d\n", new_pFile);
     printf("========================================================\n\n");
   }
 }
@@ -123,6 +125,7 @@ void Runopt::parseConfigFile() {
       else if ( strcmp(name.c_str(), "K")              == 0 ) { K              = atoi(num_txt.c_str());}
       else if ( strcmp(name.c_str(), "Sigma")          == 0 ) { Sigma          = atof(num_txt.c_str());}
       else if ( strcmp(name.c_str(), "numCoords")      == 0 ) { numCoords      = atoi(num_txt.c_str());}
+      else if ( strcmp(name.c_str(), "new_pFile")      == 0 ) { new_pFile      = atoi(num_txt.c_str());}
       
       else {
 	std::cout << "ERROR: option [" << name << "] not found. Did you forget the \" \" around a string?" << std::endl;
@@ -143,6 +146,7 @@ void Runopt::printOptions() {
   printf("        --numCoords              39 \n");
   printf("        --align-train       path/filename \n");
   printf("        --align-test        path/filename \n");
+  printf("        --new_pFile        0 \n");
   printf("        --opFileName        path/filename \n");
   printf("        --K                  (-k) 11 \n");
   printf("        --Sigma              (-s) 0.05 \n");
@@ -263,6 +267,21 @@ void Runopt::parseCmdLineOptions(int argc, char** argv) {
       K = atoi(argv[pos]);
       if(!QUIET) 
 	printf(" Option: --K [%s]\n",config_txt.c_str());
+      validArg = 1;
+    }
+
+    //new_pFile
+    if (!validArg &&
+	((strcmp(argv[pos],"--new_pFile") == 0))) {
+      if(pos >= argc-1) {
+	printf("ERROR: new_pFile has no input\n");
+	printOptions();
+	exit(1);
+      }
+      pos++;
+      new_pFile = atoi(argv[pos]);
+      if(!QUIET) 
+	printf(" Option: --new_pFile [%s]\n",config_txt.c_str());
       validArg = 1;
     }
     
