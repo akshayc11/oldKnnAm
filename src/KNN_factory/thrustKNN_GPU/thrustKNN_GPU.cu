@@ -167,7 +167,7 @@ void thrustKNN_GPU::AllocateDataStructs() {
   }
   catch (std::bad_alloc &e) {
     std::cerr << "Couldn't allocate trainIndex\n";
-    exit(-1);
+    exit(1);
   }
   
   try {
@@ -175,7 +175,7 @@ void thrustKNN_GPU::AllocateDataStructs() {
   }
   catch (std::bad_alloc &e) {
     std::cerr << "Couldn't allocate trainDistances\n";
-    exit(-1);
+    exit(2);
   }
   
 }
@@ -191,7 +191,15 @@ void thrustKNN_GPU::getKNN() {
   // Functions to be implemented include: distance Metric. 
 
   // remember to free the mallocs here
-  std::cout << "K: " << K << " M: " << M << " D: " << D << " maxLabel: " << maxLabel << std::endl;
+  
+  thrust::host_vector <float> host_tempDistances(K);
+  thrust::host_vector <unsigned int> host_tempIndexes(K);
+  
+  std::cout << "K: " << K 
+	    << " M: " << M 
+	    << " D: " << D 
+	    << " maxLabel: " << maxLabel 
+	    << std::endl;
   float score_max = SCORE_MAX;
   {  
     unsigned char *cptr = reinterpret_cast<unsigned char *>(&score_max);
@@ -203,62 +211,169 @@ void thrustKNN_GPU::getKNN() {
     cptr[2] = tmp;      
   }
   printf("thrustKNN_GPU::findKNN_Batch\n");
-  boost::progress_display show_progress(M);
-
-  thrust::host_vector <float> h_outVal(K);
   
+  thrust::host_vector <float> h_outVal;
+  try {
+    h_outVal.resize(K);
+  }
+  catch (thrust::system_error &e) {
+    std::cerr << "Error in allocating memory for h_outVal:" 
+	      << e.what() 
+	      << std::endl;
+    exit(3);
+      
+  }
+  thrust::device_vector <float> outDistances;
+  try {
+    outDistances.resize(K);
+  }
+  catch (thrust::system_error &e) {
+    std::cerr << "Error in allocating memory for outDistances:" 
+	      << e.what() 
+	      << std::endl;
+    exit(4);
+      
+  }
   
-  thrust::device_vector <float> outDistances(K);
-  thrust::device_vector <float> outDistances2(K);
-
+  thrust::device_vector <float> outDistances2;
+  try {
+    outDistances2.resize(K);
+  }
+  catch (thrust::system_error &e) {
+    std::cerr << "Error in allocating memory for outDistances2:" 
+	      << e.what() 
+	      << std::endl;
+    exit(5);
+      
+  }
+  thrust::device_vector <unsigned int> outIndexes;
+  try {
+    outIndexes.resize(K);
+  }
+  catch (thrust::system_error &e) {
+    std::cerr << "Error in allocating memory for outIndexes:" 
+	      << e.what() 
+	      << std::endl;
+    exit(6);
+      
+  }
   
-  thrust::device_vector <unsigned int> outIndexes(K);
-  thrust::device_vector <unsigned int> outIndexes2(K);
-
-  
-  thrust::device_vector<float> count(K);
-  thrust::device_vector<float> count2(K);
-  
+  thrust::device_vector <unsigned int> outIndexes2;
+  try {
+    outIndexes2.resize(K);
+  }
+  catch (thrust::system_error &e) {
+    std::cerr << "Error in allocating memory for outIndexes2:" 
+	      << e.what() 
+	      << std::endl;
+    exit(7);
+      
+  }
+  thrust::device_vector<float> count;
+  try {
+    count.resize(K);
+  }
+  catch (thrust::system_error &e) {
+    std::cerr << "Error in allocating memory for count" 
+	      << e.what() 
+	      << std::endl;
+    exit(8);
+      
+  }
+  thrust::device_vector<float> count2;
+  try {
+    count2.resize(K);
+  }
+  catch (thrust::system_error &e) {
+    std::cerr << "Error in allocating memory for count" 
+	      << e.what() 
+	      << std::endl;
+    exit(9);
+      
+  }
   
   float* objTest;
-  cudaMalloc((void **)&objTest, D*sizeof(float));
+  
+  if (cudaSuccess != cudaMalloc((void **)&objTest, D*sizeof(float))) {
+    std::cerr << "Error in allocating global memory for objTest" 
+	      << std::endl;
+    exit(10);
+  }
   
   
-  unsigned int maxTick = 1000;
-  float* trainDistance_ptr = thrust::raw_pointer_cast(&trainDistances[0]);
+  unsigned int  maxTick = 1000;
+  float*        trainDistance_ptr  = thrust::raw_pointer_cast(&trainDistances[0]);
   
   
-  float* distanceP         = (float* )        calloc (sizeof(float),D*maxTick);
-  unsigned int* indexP     = (unsigned int* ) calloc (sizeof(unsigned int),D*maxTick);
+  float*        distanceP          = (float* )        calloc (sizeof(float),       K*maxTick);
+  unsigned int* indexP             = (unsigned int* ) calloc (sizeof(unsigned int),K*maxTick);
   
-  unsigned int* label1P     = (unsigned int* ) calloc (sizeof(unsigned int),maxTick);
-  unsigned int* label2P     = (unsigned int* ) calloc (sizeof(unsigned int),maxTick);
+  unsigned int* label1P            = (unsigned int* ) calloc (sizeof(unsigned int),maxTick);
+  unsigned int* label2P            = (unsigned int* ) calloc (sizeof(unsigned int),maxTick);
   
-  unsigned int ticker       = 0;
-  unsigned int globalTicker = 0;
+  unsigned int ticker              = 0;
+  unsigned int globalTicker        = 0;
   
-  thrust::device_vector <float> likelihood1 (maxLabel*maxTick); 
-  thrust::device_vector <float> likelihood2 (maxLabel*maxTick);
+  std::cout << "creating temp arrays in GPU" << std::endl;
   
-  thrust::device_vector <float> likelihood_p(maxLabel);
+  thrust::device_vector <float> likelihood1;
+  try {
+     likelihood1.resize(maxLabel * maxTick);
+  }
+  catch (thrust::system_error &e) {
+    std::cerr << "Error in allocating memory for likelihood1: " << e.what() << std::endl;
+    exit(11);
+      
+  }
+  thrust::device_vector <float> likelihood2;
+  try {
+    likelihood2.resize(maxLabel * maxTick);
+  }
+  catch (thrust::system_error &e) {
+    std::cerr << "Error in allocating memory for likelihood2: " << e.what() << std::endl;
+    exit(12);
+      
+  }
+  thrust::device_vector <float> likelihood_p;
+  try {
+    likelihood_p.resize(maxLabel);
+  }
+  catch (thrust::system_error &e) {
+    std::cerr << "Error in allocating memory for likelihood_p: " << e.what() << std::endl;
+    exit(13);
+      
+  }
   
+  std::cout << "Done" << std::endl;
   
-  FILE* fp = fopen(opFileName.c_str(), "wb");
+  FILE*       fp      = fopen(opFileName.c_str(), "wb");
   
   std::string like1Op = opFileName + ".lik1";
-  FILE* fp1 = fopen(like1Op.c_str(), "wb");
+  FILE*       fp1     = fopen(like1Op.c_str(), "wb");
   
   std::string like2Op = opFileName + ".lik2";
-  FILE* fp2 = fopen(like2Op.c_str(), "wb");
-  
+  FILE*       fp2     = fopen(like2Op.c_str(), "wb");
+
+  //boost::progress_display show_progress(M);
+
   for (unsigned int i= 0; i < M; i++) {
     //objTest = testObjectData + (i*D);
     // Copy data from device to host
-    cudaMemcpy(objTest,
-	       testObjectData + i*D,
-	       D*sizeof(float),
-	       cudaMemcpyHostToDevice);
+    std::cout <<"before copying test data point from host to device:" << i << std::endl;
+
+    if (cudaSuccess != cudaMemcpy(objTest,
+				  testObjectData + i*D,
+				  D*sizeof(float),
+				  cudaMemcpyHostToDevice)) {
+      std::cerr << "Unable to copy point at index: " 
+		<< i 
+		<< " of test from host to device"
+		<< std::endl;
+      exit(14);
+    }
     
+    std::cout <<"before computeDistance:" << i << std::endl;
+
     thrustKNN_GPU_computeDistance
       <<<  numBlocks, numThreadsPerBlock, blockSharedDataSize >>>
       (objTest,
@@ -267,144 +382,523 @@ void thrustKNN_GPU::getKNN() {
        D,
        trainDistance_ptr);
 
+    cudaDeviceSynchronize();
     cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) 
-      printf("Error: %s\n", cudaGetErrorString(err));
+    if (err != cudaSuccess) {
+      std::cerr << "Error: computeDistance kernel failure: " 
+		<<  cudaGetErrorString(err) 
+		<< std::endl;
+      exit(15);
+    }
     
     cudaDeviceSynchronize();
+    
+      
+    std::cout <<"before computing KNN:" << i << std::endl;
 
-    thrust::sequence(trainIndex.begin(), trainIndex.end(), 0);
-    cudaDeviceSynchronize();
     try {
-      thrust::sort_by_key( trainDistances.begin(), trainDistances.end(),trainIndex.begin());
+      thrust::sequence(trainIndex.begin(), 
+		       trainIndex.end(), 
+		       0);
+      cudaDeviceSynchronize();
     }
     catch (thrust::system_error &e) {
-      std::cerr <<"Error in sort_by_key " << e.what() << std::endl;
+      std::cerr << "Error in running sequence on trainIndex: "
+		<< e.what() 
+		<< std::endl;
+      exit(16);
+      
     }
+    cudaDeviceSynchronize();
+    try {
+      thrust::sort_by_key( trainDistances.begin(), 
+			   trainDistances.end(),
+			   trainIndex.begin());
+      cudaDeviceSynchronize();
+    }
+    catch (thrust::system_error &e) {
+      std::cerr << "Error in sort_by_key for trainDistances and trainIndex: " 
+		<< e.what() 
+		<< std::endl;
+      exit(18);
+    }
+    
     // At this point, the distances have been sorted. Now, transfer the 1 to Kth neighbor info to
     // a host vector
     // Assuming that the first nearest neighbor would be the point itself 
     cudaDeviceSynchronize();
+    {
+      // Temporary print of distances 
+      thrust::copy_n(trainDistances.begin(), 
+		     K, 
+		     host_tempDistances.begin());
+      cudaDeviceSynchronize();
+      for (unsigned int k = 0; k < K; k++)
+	std::cout << host_tempDistances[k] << " ";
+      std::cout << std::endl;
+    }
+    std::cout <<"before LL:" << i << std::endl;
+    cudaDeviceSynchronize();
 
     // Log Likelihood computation
     {
-      thrust::copy_n(trainIndex.begin(), K, outIndexes.begin());
-      thrust::copy_n(trainIndex.begin(), K, outIndexes2.begin());
-      thrust::copy_n(trainDistances.begin(), K, outDistances.begin());
-      
+      std::cout <<"before computing LL1:" << i << std::endl;
+
+      try {
+	thrust::copy_n(trainIndex.begin(), 
+		       K, 
+		       outIndexes.begin());
+	cudaDeviceSynchronize();
+
+	thrust::copy_n(trainIndex.begin(), 
+		       K, 
+		       outIndexes2.begin());
+	cudaDeviceSynchronize();
+	thrust::copy_n(trainDistances.begin(), 
+		       K, 
+		       outDistances.begin());
+	cudaDeviceSynchronize();
+
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in copying from trainIndex or trainDistances: " 
+		  << e.what() 
+		  << std::endl;
+	exit(19);
+	
+      }
+      cudaDeviceSynchronize();
       // Method 1 of lik computation: Using only indexes:
-      thrust::sort(outIndexes.begin(), outIndexes.end());
-      thrust::fill(count.begin(), count.end(), 1);
+      try {
+	thrust::sort(outIndexes.begin(), outIndexes.end());
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in sorting outIndexes:" 
+		  << e.what() 
+		  << std::endl;
+	exit(20);
+	
+      }
+      cudaDeviceSynchronize();
+	  
+      try {
+	thrust::fill(count.begin(), 
+		     count.end(), 
+		     1);
+	cudaDeviceSynchronize();
+
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in filling count:" 
+		  << e.what() 
+		  << std::endl;
+	exit(21);
+	
+      }
+      cudaDeviceSynchronize();
+      
       thrust::pair <thrust::device_vector<unsigned int>::iterator, 
     		    thrust::device_vector <float>::iterator > new_pair;
-      new_pair = thrust::reduce_by_key(outIndexes.begin(), 
-    				       outIndexes.end(), 
-    				       count.begin(),
-    				       outIndexes.begin(),
-    				       count.begin());
-      
+      try {
+	new_pair = thrust::reduce_by_key(outIndexes.begin(), 
+					 outIndexes.end(), 
+					 count.begin(),
+					 outIndexes.begin(),
+					 count.begin());
+	cudaDeviceSynchronize();
+
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in reducing count using outIndexes:" 
+		  << e.what() 
+		  << std::endl;
+	exit(22);
+	
+      }
+      cudaDeviceSynchronize();
       unsigned int n = new_pair.second - count.begin();
       float fK = K;
       
-      
-      thrust::sort_by_key(count.begin(), count.begin() + n, outIndexes.begin());
-      
-      unsigned int label_p = outIndexes[n-1];
+      try {
+	thrust::sort_by_key(count.begin(), 
+			    count.begin() + n, 
+			    outIndexes.begin());
+	cudaDeviceSynchronize();
+
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in sorting outIndexes using count:" 
+		  << e.what() 
+		  << std::endl;
+	exit(22);
+	
+      }
+      cudaDeviceSynchronize();
+      unsigned int label_p;
+      try {
+	label_p = outIndexes[n-1];
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error accessing vector element: outIndexes["
+		  << n-1
+		  << "] : "
+		  << e.what() 
+		  << std::endl;
+	exit(23);
+	
+      }
+      cudaDeviceSynchronize();
       label_p = BYTE_4_REVERSE(label_p);
       label1P[ticker] = label_p;
       
       
+      try {
+	thrust::transform(count.begin(), 
+			  count.begin() + n, 
+			  count.begin(), 
+			  negLogDivideFunctor<float>(fK));
+	cudaDeviceSynchronize();
+	
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in negLogDivideTransform of count:" 
+		  << e.what() 
+		  << std::endl;
+	exit(24);
+	
+      }
+      cudaDeviceSynchronize();
+      try {
+	thrust::transform(count.begin(),
+			  count.end(),
+			  count.begin(),
+			  flipEndian<float>());
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in flipEndian transform of count:" 
+		  << e.what() 
+		  << std::endl;
+	exit(25);
+	
+      }
+      cudaDeviceSynchronize();
       
-      thrust::transform(count.begin(), 
-    			count.begin() + n, 
-    			count.begin(), 
-    			negLogDivideFunctor<float>(fK));
-    
-      
-      thrust::transform(count.begin(),
-			count.end(),
-			count.begin(),
-			flipEndian<float>());
-      
-      
-      thrust::fill(likelihood_p.begin(), 
-		   likelihood_p.end(), 
-		   score_max);
-      thrust::scatter(count.begin(), 
+      try {
+	thrust::fill(likelihood_p.begin(), 
+		     likelihood_p.end(), 
+		     score_max);
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in filling likelihood_p: :" 
+		  << e.what() 
+		  << std::endl;
+	exit(26);
+	
+      }
+      cudaDeviceSynchronize();
+      {
+	for (unsigned int o = 0; o < outIndexes.size(); o++)
+	  std::cout << outIndexes[o] << " ";
+      }
+      std::cout << std::endl;
+      try {
+	thrust::scatter(count.begin(), 
 		      count.begin() + n, 
 		      outIndexes.begin(), 
 		      likelihood_p.begin());
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in scattering count based on outIndexes:" 
+		  << e.what() 
+		  << std::endl;
+	exit(27);
+	
+      }
       
-      thrust::copy_n(likelihood_p.begin(),maxLabel,likelihood1.begin() + ticker*maxLabel);
+      cudaDeviceSynchronize();
+      try {
+	thrust::copy_n(likelihood_p.begin(),
+		       maxLabel,
+		       likelihood1.begin() + ticker*maxLabel);
+	std::cout << ticker*maxLabel << " " << likelihood1.size() << std::endl;
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in copy_n of likelihood_p to likelihood1 n: "
+		  << maxLabel
+		  << ": " 
+		  << e.what() 
+		  << std::endl;
+	exit(28);
+	
+      }
+      cudaDeviceSynchronize();
+      std::cout <<"before computing LL2:" << i << std::endl;
 
-      
       // method 2 of lik: using distances too:
       
-      thrust::sort_by_key(outIndexes2.begin(), outIndexes2.end(), outDistances.begin());
-      thrust::transform(outDistances.begin(), 
-    			outDistances.end(), 
-    			outDistances.begin(), 
-    			expXbySigma_functor<float>(Sigma2));
-    
-      thrust::reduce_by_key(outIndexes2.begin(), 
-    			    outIndexes2.end(), 
-    			    outDistances.begin(),
-    			    outIndexes2.begin(),
-    			    outDistances.begin());
-    
-      thrust::transform(outDistances.begin(), 
-    			outDistances.begin() + n, 
-    			count.begin(), 
-    			outDistances.begin(),
-    			thrust::divides<float>());
+      try {
+	thrust::sort_by_key(outIndexes2.begin(), 
+			    outIndexes2.end(), 
+			    outDistances.begin());
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in sorting outDistances using outIndexes2:" 
+		  << e.what() 
+		  << std::endl;
+	exit(29);
+	
+      }
+      cudaDeviceSynchronize();
+      // Area of problem: trying ot copy data from outIndexes2 to outIndexes.
+      std::cout << outIndexes.size() << " " << outIndexes2.size() << std::endl;
+      try {
+	thrust::copy(outIndexes2.begin(), 
+		     outIndexes2.end(), 
+		     outIndexes.begin());
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in copying outIndexes2 to outIndexes: " 
+		  << e.what() 
+		  << std::endl;
+	exit(30);
+	
+      }
+      cudaDeviceSynchronize();
+
       
-      thrust::sort_by_key(outDistances.begin(), outDistances.begin() + n, outIndexes2.begin());
+      try {
+	thrust::fill(count.begin(), 
+		     count.end(), 
+		     1);
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in filling count:" 
+		  << e.what() 
+		  << std::endl;
+	exit(30);
+	
+      }
+
+      cudaDeviceSynchronize();
+
+      try {
+	thrust::reduce_by_key(outIndexes.begin(),
+			      outIndexes.end(),
+			      count.begin(),
+			      outIndexes.begin(),
+			      count.begin());
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in reducing count using outIndexes:" 
+		  << e.what() 
+		  << std::endl;
+	exit(31);
+	
+      }
+      cudaDeviceSynchronize();
+      try {
+	thrust::transform(outDistances.begin(), 
+			  outDistances.end(), 
+			  outDistances.begin(), 
+			  expXbySigma_functor<float>(Sigma2));
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in transformaing outDistances using expXbySigma:" 
+		  << e.what() 
+		  << std::endl;
+	exit(32);
+	
+      }
+      cudaDeviceSynchronize();
+      
+      try { 
+	thrust::reduce_by_key(outIndexes2.begin(), 
+			      outIndexes2.end(), 
+			      outDistances.begin(),
+			      outIndexes2.begin(),
+			      outDistances.begin());
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in reduce_by key of outIndexes2 and outDistances:" 
+		  << e.what() 
+		  << std::endl;
+	exit(33);
+	
+      }
+      cudaDeviceSynchronize();
+      
+      try {
+	thrust::transform(outDistances.begin(), 
+			  outDistances.begin() + n, 
+			  count.begin(), 
+			  outDistances.begin(),
+			  thrust::divides<float>());
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in dividing outDistances with count:" 
+		  << e.what() 
+		  << std::endl;
+	exit(34);
+	
+      }
+      cudaDeviceSynchronize();
+      try {
+	thrust::sort_by_key(outDistances.begin(), 
+			    outDistances.begin() + n, 
+			    outIndexes2.begin());
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in sorting outIndexes2 using outDistance:" 
+		  << e.what() 
+		  << std::endl;
+	exit(35);
+      }
+      
       label_p = outIndexes[0];
       label_p = BYTE_4_REVERSE(label_p);
-      label1P[ticker] = label_p;
+      label2P[ticker] = label_p;
       
+      cudaDeviceSynchronize();
       
-      thrust::transform(outDistances.begin(), 
-    			outDistances.begin() + n, 
-    			outDistances.begin(), 
-    			negLogFunctor<float>());
+      try {
+	thrust::transform(outDistances.begin(), 
+			  outDistances.begin() + n, 
+			  outDistances.begin(), 
+			  negLogFunctor<float>());
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in transforming outDistances with negLogFunctor:" 
+		  << e.what() 
+		  << std::endl;
+	exit(36);
+	
+      }
+      cudaDeviceSynchronize();
       
-      thrust::transform(outDistances.begin(),
-			outDistances.end(),
-			outDistances.begin(),
-			flipEndian<float>());
+      try {
+	thrust::transform(outDistances.begin(),
+			  outDistances.end(),
+			  outDistances.begin(),
+			  flipEndian<float>());
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in flipEndian for outDistances:" 
+		  << e.what() 
+		  << std::endl;
+	exit(37);
+	
+      }
+      cudaDeviceSynchronize();
       
-      thrust::fill(likelihood_p.begin(), 
-		   likelihood_p.end(), 
-		   score_max);
+      try {
+	thrust::fill(likelihood_p.begin(), 
+		     likelihood_p.end(), 
+		     score_max);
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in filling likelihood_p:" 
+		  << e.what() 
+		  << std::endl;
+	exit(38);
+      }
+      cudaDeviceSynchronize();
       
-      thrust::scatter(outDistances.begin(), 
-		      outDistances.begin() + n, 
-		      outIndexes2.begin(), 
-		      likelihood_p.begin());
-
-      thrust::copy_n(likelihood_p.begin(),maxLabel,likelihood2.begin() + ticker*maxLabel);
+      try {
+	thrust::scatter(outDistances.begin(), 
+			outDistances.begin() + n, 
+			outIndexes2.begin(), 
+			likelihood_p.begin());
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in scattering outDistances into likelihood_p using outIndexes2:" 
+		  << e.what() 
+		  << std::endl;
+	exit(39);
+      }
+      cudaDeviceSynchronize();
+      
+      try {
+	thrust::copy_n(likelihood_p.begin(),
+		       maxLabel,
+		       likelihood2.begin() + ticker*maxLabel);
+	cudaDeviceSynchronize();
+      }
+      catch (thrust::system_error &e) {
+	std::cerr << "Error in copying likelihhod_p to likelihood2:" 
+		  << e.what() 
+		  << std::endl;
+	exit(40);
+      }
+      cudaDeviceSynchronize();
       
     }
+    std::cout <<"before copying KNN data:" << i << std::endl;
+
     //thrust::copy_n(trainIndex.begin()+1, K, d_trainIndex.begin()+(K*i) );
-    thrust::copy_n(trainIndex.begin(), K, indexP + (K*ticker));
-    
+    try {
+      thrust::copy_n(trainIndex.begin(), 
+		     K, 
+		     indexP + (K*ticker));
+      cudaDeviceSynchronize();
+    }
+    catch (thrust::system_error &e) {
+      std::cerr << "Error in coyping trainIndex to indexP:" 
+		<< e.what() 
+		<< std::endl;
+      exit(41);
+      
+    }
+      
     cudaDeviceSynchronize();
     
     //thrust::copy_n(trainDistances.begin()+1, K, d_trainDistances.begin()+(K*i) );
-    thrust::copy_n(trainDistances.begin(), K, distanceP + (K*ticker));
-    
+    try {
+      thrust::copy_n(trainDistances.begin(), 
+		     K, 
+		     distanceP + (K*ticker));
+      cudaDeviceSynchronize();
+    }
+    catch (thrust::system_error &e) {
+      std::cerr << "Error in copying trainDistances to distanceP:" 
+		<< e.what() 
+		<< std::endl;
+      exit(42);
+      
+    }
+      
     cudaDeviceSynchronize();
     
-    ++show_progress;
+    //++show_progress;
     
     //cudaDeviceSynchronize();
     ticker++;
     
     if ((ticker % maxTick) == 0) {
+      std::cout <<"before writing to file in ticker:" << i << std::endl;
+
       // Write the data accumalated in the distanceP array to write buffer:
+      
       thrust::host_vector <float> h_likelihood1 = likelihood1;
       thrust::host_vector <float> h_likelihood2 = likelihood2;
+      cudaDeviceSynchronize();
+      
       for (unsigned int i_tick = 0; i_tick < maxTick; i_tick++) {
 	unsigned int* inP   = indexP    + (i_tick * K);
 	float*        distP = distanceP + (i_tick * K);
@@ -437,6 +931,8 @@ void thrustKNN_GPU::getKNN() {
       
   }
   // Write the remaining data accumalated in the distanceP array to write buffer:
+  std::cout <<"before writing remainder data:" << std::endl;
+
   for (unsigned int i_tick = 0; i_tick < ticker; i_tick++) {
     unsigned int* inP   = indexP    + (i_tick * K);
     float*        distP = distanceP + (i_tick * K);

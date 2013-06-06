@@ -73,6 +73,21 @@ void AlignTrain_newpFile_GPU::Setup_Train() {
       if (buffer.find("-end") != std::string::npos)
 	break;
       {
+	size_t pos = buffer.find("-pfile_header");
+	if (pos != std::string::npos) {
+	  pos = buffer.find("size ");
+	  if (pos == std::string::npos) {
+	    std::cerr << "Erroneous header file: Expeced size to be a part of this" << std::endl;
+	    exit(1);
+	  }
+	  else {
+	    pos += 5;
+	    std::string header_size = buffer.substr(pos);
+	    headerSize = atoi(header_size.c_str());
+	  }
+	}
+      }
+      {
 	size_t pos = buffer.find("-num_frames "); 
 	if (pos != std::string::npos) {
 	  pos += 12;
@@ -91,7 +106,7 @@ void AlignTrain_newpFile_GPU::Setup_Train() {
 	
     } while(1);
     // end of header and begin of data
-    headerSize = inFile.tellg();
+    // headerSize = inFile.tellg();
     std::cout << "headerSize: " << headerSize << std::endl;
   }
 
