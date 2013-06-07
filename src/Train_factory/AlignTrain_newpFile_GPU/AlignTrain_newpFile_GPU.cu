@@ -47,7 +47,7 @@ AlignTrain_newpFile_GPU::~AlignTrain_newpFile_GPU() {
   objectData = NULL;
   
   if (objLabel) {
-    cudaFree (objLabel);  // Free object Labels
+    free (objLabel);  // Free object Labels
   }
   objLabel = NULL;
   
@@ -198,12 +198,13 @@ void AlignTrain_newpFile_GPU::Load_Train() {
 		    memSizeObjLabel,
 		    cudaMemcpyHostToDevice) 
 	 == cudaSuccess);
+  objLabel = hostObjLabel;
   //sleep(5);
   fseek(trainFile,0,SEEK_SET);
   fclose(trainFile);
   //sleep(5);
   free(hostObjectData);
-  free(hostObjLabel);
+  //free(hostObjLabel);
   
 
 }
@@ -216,7 +217,7 @@ void AlignTrain_newpFile_GPU::Clear_Train() {
   }
   objectData = NULL;
   if(objLabel)
-    cudaFree(objLabel);
+    free(objLabel);
   objLabel = NULL;
   numObjs = 0;
   numCoords = 0;

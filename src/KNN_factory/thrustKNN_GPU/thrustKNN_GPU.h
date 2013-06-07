@@ -62,6 +62,7 @@ class thrustKNN_GPU : public IKNN {
   thrust::device_vector <labelType> trainLabel;
   thrust::device_vector <unsigned int> trainIndex;
   thrust::device_vector <float> trainDistances;
+
   //float* trainDistances;
   thrust::device_vector <labelType> testLabel;
   thrust::device_vector <float> testDistances;
